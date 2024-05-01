@@ -1,16 +1,61 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { db } from "./firebaseConfig";
 
-export default function Availability () {
+export default function Availability() {
+  const [averageDistance, setAverageDistance] = useState(null);
+
+  useEffect(() => {
+    const fetchAverageDistances = async () => {
+      try {
+        const avgDistanceRef = collection(db, 'avgDistance');
+  
+        const q = query(avgDistanceRef, orderBy('time', 'desc'), limit(3));
+        const querySnapshot = await getDocs(q);
+  
+        let totalDistance = 0;
+        let count = 0;
+        let latestDistances = [];
+  
+        // Log the latest 3 distance values
+        console.log('Latest 3 distance values:');
+        querySnapshot.forEach((doc) => {
+          const { time, distance } = doc.data();
+          console.log('Time:', time, 'Distance:', distance);
+          totalDistance += distance;
+          count++;
+          latestDistances.push(distance);
+        });
+  
+        // Calculate the average of the last 3 average distances
+        if (count > 0) {
+          const avg = totalDistance / count;
+          setAverageDistance(avg);
+          console.log('Average distance:', avg);
+        }
+      } catch (error) {
+        console.error('Error fetching average distances:', error);
+      }
+    };
+  
+    //Asynchronous function 
+    fetchAverageDistances();
+    const interval = setInterval(fetchAverageDistances, 180000); // 180000 ms = 3 minutes
+  
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
+  
+
   return (
     <View style={styles.container}>
       <View style={styles.box}>
-        <Text style={styles.available}>1500</Text>
+        <Text style={styles.available}>{averageDistance !== null ? averageDistance.toFixed(2) : '-'}</Text>
         <Text style={styles.liters}>Liters</Text>
       </View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -34,7 +79,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
   },
-  liters:{
+  liters: {
     fontSize: 18,
-  }
+  },
 });
